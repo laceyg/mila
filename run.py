@@ -19,6 +19,7 @@ parser.add_argument('--exclude', type=str, default='', help='name of the experie
 parser.add_argument('--no-cgexec', action='store_true', help='do not execute inside a cgroup')
 parser.add_argument('--no-nocache', action='store_true', help='do not use nocache')
 
+parser.add_argument('--uid', type=int, default=0, help='Run UID')
 parser.add_argument('--singularity', type=str, default=None, help='singularity image to use')
 parser.add_argument('--raise-error', action='store_true', default=False)
 
@@ -87,11 +88,19 @@ def make_configs(args, current=''):
     return make_configs(copy.deepcopy(args), current=f'{current} {name} {values}')
 
 
-def run_job(cmd, config, group, name):
-    """ Run a model on each GPUs """
+def run_job(cmd, config, group, name, run_uid):
+    """Run a model on each GPUs
+
+    RUN_ID: int
+        number of time the benchmark was run to date
+
+    JOB_ID: int
+        job id / GPU id when a job is spawned per GPU
+    """
     env['BENCH_NAME'] = name
 
     if group == cgroups['all']:
+        env['RUN_ID'] = str(run_uid)
         env['JOB_ID'] = '0'
         env['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in range(device_count)])
         prefix = exec_prefix.replace('$CGROUP', group)
@@ -109,7 +118,8 @@ def run_job(cmd, config, group, name):
         prefix = exec_prefix.replace('$CGROUP', f'{group}{i}')
 
         exec_cmd = f"{prefix} {cmd} --seed {i}"
-        processes.append(subprocess.Popen(f'JOB_ID={i} CUDA_VISIBLE_DEVICES={i} {exec_cmd}', env=env, shell=True))
+        exec_cmd = f'RUN_ID={run_uid} JOB_ID={i} CUDA_VISIBLE_DEVICES={i} {exec_cmd}'
+        processes.append(subprocess.Popen(exec_cmd, env=env, shell=True))
 
     exceptions = []
     for process in processes:
@@ -131,7 +141,7 @@ def run_job(cmd, config, group, name):
     return
 
 
-def run_job_def(definition, name=None):
+def run_job_def(definition, name=None, run_uid=0):
     if name is not None and definition['name'] != name:
         return
 
@@ -152,7 +162,7 @@ def run_job_def(definition, name=None):
         try:
             group = cgroups[definition.get('cgroup', 'all')]
 
-            run_job(cmd, config, group, definition['name'])
+            run_job(cmd, config, group, definition['name'], run_uid)
 
             msg = f'{cmd} {(time.time() - s) / 60:8.2f} min passed\n'
 
@@ -188,7 +198,7 @@ def run_job_file(name):
     start_all = time.time()
 
     for job in jobs:
-        run_job_def(job, name)
+        run_job_def(job, name, opt.uid)
 
     msg = f'Total Time {time.time() - start_all:8.2f} s\n'
     print(msg)

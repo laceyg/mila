@@ -18,6 +18,9 @@ except:
 import argparse
 from argparse import Namespace
 
+from tinydb import TinyDB, Query
+from filelock import FileLock
+
 import benchutils.arguments as bench_args
 from benchutils.versioning import get_file_version
 from benchutils.chrono import MultiStageChrono
@@ -181,6 +184,7 @@ class Experiment:
 
     def report(self):
         make_report(
+            self.name,
             self._chrono,
             self.args,
             self.version,
@@ -234,7 +238,7 @@ def parser_base(description=None, **kwargs):
     return parser
 
 
-def make_report(chrono: MultiStageChrono, args: Namespace, version: str, batch_loss: RingBuffer, epoch_loss: RingBuffer, metrics, remote_logger):
+def make_report(name, chrono: MultiStageChrono, args: Namespace, version: str, batch_loss: RingBuffer, epoch_loss: RingBuffer, metrics, remote_logger):
     if args is not None:
         args = args.__dict__
     else:
@@ -273,6 +277,7 @@ def make_report(chrono: MultiStageChrono, args: Namespace, version: str, batch_l
     args['batch_loss'] = batch_loss.to_list()
     args['epoch_loss'] = epoch_loss.to_list()
     args['metrics'] = metrics
+    args['run_uid'] = os.environ.get('RUN_ID')
 
     for excluded in excluded_arguments:
         args.pop(excluded, None)
@@ -298,20 +303,16 @@ def make_report(chrono: MultiStageChrono, args: Namespace, version: str, batch_l
 
         report_dict['train_item'] = train_item
 
-    print('-' * 80)
+    lock = FileLock(f'{filename}.lock', timeout=10)
+    with lock:
+        db = TinyDB(filename)
+        table = db.table(name)
+        table.insert(report_dict)
+        db.close()
+
     json_report = json.dumps(report_dict, sort_keys=True, indent=4, separators=(',', ': '))
+    print('-' * 80)
     print(json_report)
-
-    if not os.path.exists(filename):
-        report_file = open(filename, 'w')
-        report_file.write('[')
-        report_file.close()
-
-    report_file = open(filename, 'a')
-    report_file.write(json_report)
-    report_file.write(',')
-    report_file.close()
-
     print('-' * 80)
 
 

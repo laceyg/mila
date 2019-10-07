@@ -3,6 +3,8 @@ git+git://github.com/Delaunay/pytorch-a2c-ppo-acktr@master#egg=a2c_ppo_acktr
 git+git://github.com/Delaunay/benchutils@master#egg=benchutils
 git+git://github.com/Delaunay/baselines.git
 git+git://github.com/Delaunay/reporting.git
+tinydb
+filelock
 absl-py==0.7.1
 astor==0.7.1
 atari-py==0.1.7
