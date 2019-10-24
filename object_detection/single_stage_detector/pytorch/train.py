@@ -162,7 +162,12 @@ def train300_mlperf_coco(exp, args):
     train_coco = COCODetection(train_coco_root, train_annotate, train_trans)
 
     #print("Number of labels: {}".format(train_coco.labelnum))
-    train_dataloader = DataLoader(train_coco, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(
+        train_coco,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.worker
+    )
     # set shuffle=True in DataLoader
     # mlperf_log.ssd_print(key=# mlperf_log.INPUT_SHARD, value=None)
     # mlperf_log.ssd_print(key=# mlperf_log.INPUT_ORDER)
