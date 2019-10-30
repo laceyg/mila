@@ -182,7 +182,7 @@ class Experiment:
         metric.append(val)
         self.remote_logger.log_metric(name, val)
 
-    def report(self):
+    def report(self, override={}):
         make_report(
             self.name,
             self._chrono,
@@ -191,7 +191,8 @@ class Experiment:
             self.batch_loss_buffer,
             self.epoch_loss_buffer,
             {name: val.to_list() for name, val in self.metrics.items()},
-            self.remote_logger
+            self.remote_logger,
+            override
         )
 
     def get_device(self):
@@ -238,7 +239,8 @@ def parser_base(description=None, **kwargs):
     return parser
 
 
-def make_report(name, chrono: MultiStageChrono, args: Namespace, version: str, batch_loss: RingBuffer, epoch_loss: RingBuffer, metrics, remote_logger):
+def make_report(name, chrono: MultiStageChrono, args: Namespace, version: str,
+                batch_loss: RingBuffer, epoch_loss: RingBuffer, metrics, remote_logger, override):
     if args is not None:
         args = args.__dict__
     else:
@@ -302,6 +304,7 @@ def make_report(name, chrono: MultiStageChrono, args: Namespace, version: str, b
         }
 
         report_dict['train_item'] = train_item
+    report_dict.update(override)
 
     lock = FileLock(f'{filename}.lock', timeout=10)
     with lock:
