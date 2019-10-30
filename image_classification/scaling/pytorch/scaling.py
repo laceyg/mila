@@ -5,12 +5,12 @@ from perf import *
 import numpy as np
 
 
-def parse_args():
+def parse_args(args):
     parser = ArgumentParser()
     parser.add_argument('--devices', type=str, default=None)
     parser.add_argument('script', type=str)
     parser.add_argument('args', nargs=REMAINDER)
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def launch_distributed(args):
